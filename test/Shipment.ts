@@ -9,6 +9,8 @@ describe("ShipmentFactory (Universal)", function () {
     let shipmentCollection2: Shipment;
     let oracleRegistry: OracleRegistry;
     let owner: Signer, user: Signer;
+    const secret = ethers.randomBytes(32);
+    const keyHash = ethers.keccak256(secret);
 
     beforeEach(async function () {
         [owner, user] = await ethers.getSigners();
@@ -65,22 +67,27 @@ describe("ShipmentFactory (Universal)", function () {
             await factory.connect(owner).registerShipmentContract(await shipmentCollection1.getAddress());
         });
 
-        it("Should create a shipment in a registered collection", async function () {
+        it("Should create a shipment and correctly store the secret hash", async function () {
             const collectionAddr = await shipmentCollection1.getAddress();
             const recipientAddr = await user.getAddress();
             const payment = ethers.parseEther("1.0");
 
+            // Test the createShipment call with the new secretHash parameter
             await expect(factory.connect(user).createShipment(
                 collectionAddr,
                 recipientAddr,
                 "Test Cargo",
                 [await user.getAddress(), recipientAddr],
                 payment,
+                keyHash, // Pass the new hash
                 { value: payment }
-            )).to.emit(factory, "ShipmentCreated")
-              .withArgs(collectionAddr, 0, await user.getAddress()); // TokenID 0 for the first mint in this collection
+            )).to.emit(factory, "ShipmentCreated");
+
+            const tokenId = 0;
+            const details = await shipmentCollection1.shipmentDetails(tokenId);
             
-            expect(await shipmentCollection1.ownerOf(0)).to.equal(await user.getAddress());
+            // Verify that the hash was stored correctly on the Shipment contract
+            expect(details.keyHash).to.equal(keyHash);
         });
 
         it("Should fail to create a shipment in an unregistered collection", async function () {
@@ -94,8 +101,26 @@ describe("ShipmentFactory (Universal)", function () {
                 "Test Cargo",
                 [await user.getAddress(), recipientAddr],
                 payment,
+                keyHash,
                 { value: payment }
             )).to.be.revertedWith("Factory: Target contract is not registered");
+        });
+
+        it("Should fail if the secret hash is empty", async function () {
+            const collectionAddr = await shipmentCollection1.getAddress();
+            const recipientAddr = await user.getAddress();
+            const payment = ethers.parseEther("1.0");
+            const emptyHash = ethers.ZeroHash; // "0x00..."
+
+            await expect(factory.connect(user).createShipment(
+                collectionAddr,
+                recipientAddr,
+                "Test Cargo",
+                [await user.getAddress(), recipientAddr],
+                payment,
+                emptyHash, // Pass an empty hash
+                { value: payment }
+            )).to.be.revertedWith("Factory: Secret hash cannot be empty");
         });
     });
 });

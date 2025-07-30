@@ -31,6 +31,7 @@ contract Shipment is ERC721, Ownable {
         address[] plannedRoute;
         uint256 currentRouteIndex;
         address pendingCustodian;
+        bytes32 keyHash;
     }
 
     mapping(uint256 => Details) public shipmentDetails;
@@ -103,7 +104,8 @@ contract Shipment is ERC721, Ownable {
         address shipper,
         address recipient,
         string calldata cargoDetails,
-        address[] calldata plannedRoute
+        address[] calldata plannedRoute,
+        bytes32 keyHash
     ) external payable onlyFactory {
         _mint(shipper, tokenId);
 
@@ -115,6 +117,7 @@ contract Shipment is ERC721, Ownable {
             paymentAmount: msg.value,
             plannedRoute: plannedRoute,
             currentRouteIndex: 0,
+            keyHash: keyHash,
             pendingCustodian: address(0)
         });
 
@@ -140,15 +143,15 @@ contract Shipment is ERC721, Ownable {
      * @notice The designated recipient requests verification from the Fraud Detection Agent.
      * @dev This signals the off-chain agent to begin its multi-factor checks.
      * @param tokenId The ID of the shipment being received.
-     * @param physicalScanData The raw data from the physical scan (e.g., QR code, NFC tap).
+     * @param custodianProofHash The keccak256 hash of the plaintext secret from the physical scan.
      */
-    function requestVerification(uint256 tokenId, bytes calldata physicalScanData) external {
+    function requestVerification(uint256 tokenId, bytes32 custodianProofHash) external {
         Details storage shipment = shipmentDetails[tokenId];
         require(msg.sender == shipment.pendingCustodian, "Not the designated recipient");
         require(shipment.status == Status.InTransit, "Handover not initiated");
 
         shipment.status = Status.AwaitingVerification;
-        emit VerificationRequested(tokenId, msg.sender, physicalScanData);
+        emit VerificationRequested(tokenId, msg.sender, abi.encode(custodianProofHash));
     }
 
     /**

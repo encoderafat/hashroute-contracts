@@ -1,0 +1,4 @@
+Deployed Contract Addresses:
+  - OracleRegistry:        0xBc10C6c775D1FB886CEdd4384fb396E21160D5C6
+  - ShipmentFactory:       0x32DE349F74035F2c03D5C9d780988c4f08486e79
+  - Shipment:  0xC9E8373f4b22279A51d243644c4b7716E6EBD201

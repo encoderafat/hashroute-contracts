@@ -77,6 +77,7 @@ contract ShipmentFactory is Ownable {
      * @param _cargoDetails A description of the shipment's contents.
      * @param _plannedRoute The multi-node journey of the shipment.
      * @param _paymentAmount The amount of HBAR to be held in escrow.
+     * @param _keyHash Optional secret hash for future verification (not used in this version). 
      * @return tokenId The ID of the newly created Shipment NFT within its collection.
      */
     function createShipment(
@@ -84,7 +85,8 @@ contract ShipmentFactory is Ownable {
         address _recipient,
         string calldata _cargoDetails,
         address[] calldata _plannedRoute,
-        uint256 _paymentAmount
+        uint256 _paymentAmount,
+        bytes32 _keyHash
     ) public payable returns (uint256) {
         // --- Input Validations ---
         require(isShipmentContractRegistered[_collectionAddress], "Factory: Target contract is not registered");
@@ -92,6 +94,7 @@ contract ShipmentFactory is Ownable {
         require(msg.value == _paymentAmount, "Factory: HBAR sent does not match payment amount for escrow");
         require(_plannedRoute[0] == msg.sender, "Factory: Route must start with the shipper");
         require(_plannedRoute[_plannedRoute.length - 1] == _recipient, "Factory: Route must end with the recipient");
+        require(_keyHash != bytes32(0), "Factory: Secret hash cannot be empty");
 
         // --- Interaction with Target Shipment Contract ---
         Shipment shipmentContract = Shipment(_collectionAddress);
@@ -104,7 +107,8 @@ contract ShipmentFactory is Ownable {
             msg.sender,
             _recipient,
             _cargoDetails,
-            _plannedRoute
+            _plannedRoute,
+            _keyHash
         );
 
         // --- Emit Event and Return ---
